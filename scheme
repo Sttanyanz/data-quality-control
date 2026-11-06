@@ -1,0 +1,53 @@
+unit(
+  id        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name      TEXT NOT NULL,
+  parent_id BIGINT NULL REFERENCES unit(id) ON DELETE RESTRICT,
+  CHECK (id <> parent_id)
+)
+
+goal(
+  id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title          TEXT NOT NULL,
+  unit_id        BIGINT NOT NULL REFERENCES unit(id) ON DELETE RESTRICT,
+  owner_id       BIGINT NULL,                    -- без FK: таблицы users нет
+  parent_goal_id BIGINT NULL REFERENCES goal(id) ON DELETE SET NULL,
+  status         goal_status NOT NULL,           -- ACTIVE / DONE / CANCELLED
+  due_date       DATE NULL
+)
+
+key_result(
+  id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name            TEXT NOT NULL,
+  goal_id         BIGINT NOT NULL REFERENCES goal(id) ON DELETE CASCADE,
+  target_value    NUMERIC(19,4) NULL,
+  actual_value    NUMERIC(19,4) NULL,
+  weight          NUMERIC(5,2) NULL CHECK (weight >= 0 AND weight <= 100),
+  fact_updated_at TIMESTAMPTZ NULL
+)
+
+kkd_rule(
+  id          SMALLINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  code        TEXT NOT NULL UNIQUE,              -- GOAL_NO_OWNER, ...
+  target_type issue_target NOT NULL,             -- GOAL / KR
+  severity    severity NOT NULL,                 -- critical / major / minor
+  title       TEXT NOT NULL
+)
+
+kkd_run(
+  id                 BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  snapshot_date      DATE NOT NULL,
+  compared_to_run_id BIGINT NULL REFERENCES kkd_run(id),   -- NULL у первого прогона
+  status             run_status NOT NULL,                  -- COMPLETED (+ RUNNING/FAILED)
+  CHECK (compared_to_run_id IS NULL OR compared_to_run_id <> id)
+)
+
+kkd_issue(
+  id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  run_id        BIGINT NOT NULL REFERENCES kkd_run(id) ON DELETE CASCADE,
+  rule_id       SMALLINT NOT NULL REFERENCES kkd_rule(id),
+  goal_id       BIGINT NULL REFERENCES goal(id) ON DELETE CASCADE,
+  key_result_id BIGINT NULL REFERENCES key_result(id) ON DELETE CASCADE,
+  severity      severity NOT NULL,               -- снимок kkd_rule.severity
+  message       TEXT NOT NULL,
+  CHECK (num_nonnulls(goal_id, key_result_id) = 1)
+)

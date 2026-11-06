@@ -1,0 +1,107 @@
+# Дизайн: модуль ККД
+
+## Модель данных
+
+### unit
+Подразделения, adjacency list. `parent_id` — ссылка на родителя, NULL у корня.
+
+### goal
+Цель. `unit_id` — организационная принадлежность для агрегации метрик.
+`owner_id` — персональный ответственный (NULL допустим: это ловит GOAL_NO_OWNER).
+`parent_goal_id` — каскадирование целей. `status` — ACTIVE / DONE / CANCELLED.
+
+### key_result
+Ключевой результат цели. `target_value`, `actual_value` — NUMERIC.
+`weight` — NUMERIC 0..100. `fact_updated_at` — время последнего обновления факта.
+
+### kkd_rule
+Справочник правил. `code` — стабильный машинный идентификатор (UNIQUE),
+`target_type` — на что правило порождает проблемы (GOAL / KR),
+`severity` — текущая важность правила.
+
+### kkd_run
+Прогон проверки. `snapshot_date`, `status`, `compared_to_run_id`.
+У первого прогона `compared_to_run_id = NULL`.
+
+### kkd_issue
+Найденная проблема. Exclusive arc на две FK `goal_id` и `key_result_id`. `severity` — снимок важности на момент прогона. `message` — текст проблемы для UI.
+
+## Ключевые решения
+
+### 1. Exclusive arc для объектов kkd_issue
+`kkd_issue` ссылается на цель или КР через две nullable FK.
+
+### 2. Снимок severity в kkd_issue
+`kkd_issue.severity` хранится отдельно в строках kkd_issue, не только в правилах kkd_rule. Причина: изменения параметров правил в kkd_rule не должно влиять на старые прогоны.
+
+### 3. Идентичность проблемы для дельты
+«Та же самая проблема» = совпали `(rule_id, goal_id, key_result_id)`.
+Сравнение через `IS NOT DISTINCT FROM` (одна из FK всегда NULL).
+Защита от дублей: unique index `(run_id, rule_id, goal_id, key_result_id) NULLS NOT DISTINCT`.
+
+### 4. Подсчет иерархии подразделений
+Для `unit_id` рекурсивно собирается поддерево обходом в памяти (все unit
+загружаются одним запросом). Метрики считаются по `goal.unit_id ∈ поддерево`,
+только по активным целям.
+
+### 5. Батчевая загрузка данных для правил
+Правила получают предзагруженный снимок: units, goals, krs — тремя запросами,
+без N+1. `Clock` инжектируется для тестируемости правил с датами.
+
+### 6. Доступ к данным
+Для `kkd_issue` используется JdbcTemplate / Spring Data JDBC: exclusive arc маппится в DTO без lazy-связей, снимается риск LazyInitializationException.
+
+### 7. Ответственный
+`goal.owner_id` — идентификатор сотрудника во внешней системе управления персоналом; таблица сотрудников вне границ модуля ККД, поэтому FK не создаётся. Ссылочная целостность обеспечивается внешней системой; для правила GOAL_NO_OWNER достаточно проверки `owner_id IS NULL`.
+
+## API
+
+### GET /api/runs
+Список прогонов: `id`, `snapshot_date`, `status`, `compared_to_run_id`,
+`issues_count`.
+
+### GET /api/kkd/summary?run_id=&unit_id=
+- `run` — id и дата снимка;
+- `compared_to` — id и дата предыдущего прогона или null;
+- `unit` — id и имя;
+- `metrics` — минимум 3 метрики: `key`, `title`, `unit`, `value`, `previous`,
+  `delta`, `trend` (better / worse / stable);
+- `issues_by_severity` — current / previous / delta по critical, major, minor;
+- `delta` — new / persisting / resolved.
+
+### GET /api/kkd/issues?run_id=&unit_id=&rule=&severity=&limit=&offset=
+Список проблем: `items`, `limit`, `offset`, `total`. Элемент: `id`,
+`rule_code`, `severity`, `target_type` (GOAL / KR), `target_id`, `message`.
+
+### Ошибки
+Неизвестный run_id или unit_id → 404. Некорректные параметры → 422.
+Формат: `{"error": {"code": "...", "message": "..."}}`.
+
+## Инфраструктура
+
+- Flyway: V1 схема, U1 откат схемы, V2/U2 справочник правил, V3/U3 seed.
+  Для seed откат — DELETE по известным идентификаторам.
+- docker compose: postgres с healthcheck, app с depends_on service_healthy,
+  миграции на старте приложения.
+- Конфигурация только через env, `.env.example` в репозитории.
+
+## Тесты (JUnit 5)
+
+Обязательные 4: два правила на граничных данных, расчёт метрики, расчёт дельты.
+Дополнительно: первый прогон (null, не 0) и валидация target_type в engine.
+
+## Использование AI-ассистента
+
+Раздел заполняется автором решения: с каким ассистентом велась работа, какие
+задачи ставились, что принято как есть, что переписано вручную и почему.
+Этот файл и requirements.md — артефакт specs/, требуемый заданием.
+
+## Открытые решения (закрыть до Шага 1)
+
+1. `kkd_run.compared_to_run_id`: хранить колонкой или вычислять как последний
+   COMPLETED-прогон с меньшей snapshot_date. Влияет на наличие колонки и FK.
+3. Формулы трёх метрик: точные числитель/знаменатель и направление «лучше/хуже»
+   для каждой. Без этого `trend` не посчитать.
+4. Поведение при удалении цели: `ON DELETE CASCADE` удалит исторические
+   проблемы и сломает дельту прошлых прогонов. Нужно решение: CASCADE,
+   RESTRICT или снимок набора целей на прогон.
