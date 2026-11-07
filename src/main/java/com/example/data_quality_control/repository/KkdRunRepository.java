@@ -36,4 +36,15 @@ public class KkdRunRepository {
                 """;
         return jdbcTemplate.query(sql, kkdRunRowMapper);
     }
+
+    public KkdRun findById(Long id) {
+        String sql = """
+                SELECT r.id, r.snapshot_date, r.compared_to_run_id, r.status, COUNT(i.id) AS issues_count
+                FROM kkd_run r
+                LEFT JOIN kkd_issue i ON r.id = i.run_id
+                WHERE r.id = ?
+                GROUP BY r.id, r.snapshot_date, r.compared_to_run_id, r.status
+                """;
+        return jdbcTemplate.query(sql, kkdRunRowMapper, id).stream().findFirst().orElse(null);
+    }
 }
