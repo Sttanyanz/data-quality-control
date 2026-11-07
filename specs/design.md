@@ -156,6 +156,14 @@ NULL означает «факт никогда не обновлялся» — 
 Список проблем: `items`, `limit`, `offset`, `total`. Элемент: `id`,
 `rule_code`, `severity`, `target_type` (GOAL / KR), `target_id`, `message`.
 
+Формат ответа для списка с пагинацией:
+{
+"items": [ ... ],
+"limit": 20,
+"offset": 0,
+"total": 20
+}
+
 ### Ошибки
 
 Неизвестный run_id или unit_id → 404. Некорректные параметры → 422.
