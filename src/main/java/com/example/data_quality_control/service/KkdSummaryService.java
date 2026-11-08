@@ -2,10 +2,13 @@ package com.example.data_quality_control.service;
 
 import com.example.data_quality_control.domain.KkdRun;
 import com.example.data_quality_control.domain.summary.*;
+import com.example.data_quality_control.exception.NotFoundException;
 import com.example.data_quality_control.repository.KkdRunRepository;
 import com.example.data_quality_control.repository.MetricsRepository;
 import com.example.data_quality_control.repository.SummaryDeltaRepository;
 import com.example.data_quality_control.repository.UnitRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +19,8 @@ import java.util.Set;
 @Service
 @Transactional(readOnly = true)
 public class KkdSummaryService {
+
+    private static final Logger log = LoggerFactory.getLogger(KkdSummaryService.class);
 
     private final KkdRunRepository kkdRunRepository;
     private final UnitRepository unitRepository;
@@ -38,14 +43,18 @@ public class KkdSummaryService {
     }
 
     public SummaryResponse getSummary(Long runId, Long unitId) {
+        log.info("Calculating summary for runId={}, unitId={}", runId, unitId);
         // Get current run
         KkdRun run = kkdRunRepository.findById(runId);
         if (run == null) {
-            throw new RuntimeException("Run not found");
+            throw new NotFoundException("Run with id " + runId + " not found");
         }
 
         // Get unit name
         String unitName = unitRepository.findUnitName(unitId);
+        if (unitName == null) {
+            throw new NotFoundException("Unit with id " + unitId + " not found");
+        }
 
         // Get scope goal IDs
         Set<Long> goalIds = scopeService.getScopeGoalIds(unitId);
@@ -57,6 +66,8 @@ public class KkdSummaryService {
         MetricCountsDto previousCounts = null;
         if (run.comparedToRunId() != null) {
             previousCounts = metricsRepository.getCounts(run.comparedToRunId(), goalIds);
+        } else {
+            log.warn("Run {} has no comparedToRunId. Delta will be null.", runId);
         }
 
         // Calculate metrics
@@ -124,6 +135,7 @@ public class KkdSummaryService {
         RunInfo runInfo = new RunInfo(run.id(), run.snapshotDate());
         UnitInfo unitInfo = new UnitInfo(unitId, unitName);
 
+        log.info("Successfully calculated summary for runId={}", runId);
         return new SummaryResponse(runInfo, comparedTo, unitInfo, metrics, severityStats, delta);
     }
 
