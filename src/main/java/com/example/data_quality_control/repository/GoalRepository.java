@@ -39,7 +39,8 @@ public class GoalRepository {
         Long goalId = rs.getLong("goal_id");
         java.math.BigDecimal weight = rs.getObject("weight", java.math.BigDecimal.class);
         java.math.BigDecimal targetValue = rs.getObject("target_value", java.math.BigDecimal.class);
-        Instant factUpdatedAt = rs.getObject("fact_updated_at", Instant.class);
+        java.sql.Timestamp ts = rs.getTimestamp("fact_updated_at");
+        Instant factUpdatedAt = ts != null ? ts.toInstant() : null;
         return new KeyResultForRule(id, goalId, weight, targetValue, factUpdatedAt);
     };
 

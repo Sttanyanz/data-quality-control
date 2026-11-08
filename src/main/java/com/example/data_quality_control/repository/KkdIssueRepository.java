@@ -10,7 +10,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -91,7 +90,7 @@ public class KkdIssueRepository {
     public void saveAll(Long runId, List<KkdIssue> issues) {
         String sql = """
                 INSERT INTO kkd_issue (run_id, rule_id, goal_id, key_result_id, severity, message)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, CAST(? AS severity), ?)
                 """;
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
             @Override

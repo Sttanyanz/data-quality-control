@@ -53,21 +53,22 @@ public class KkdRunRepository {
 
     public Long createRun(Long comparedToRunId, LocalDate snapshotDate) {
         String sql = """
-                INSERT INTO kkd_run (status, compared_to_run_id, snapshot_date)
-                VALUES ('RUNNING', ?, ?)
+                INSERT INTO kkd_run (compared_to_run_id, snapshot_date, status)
+                VALUES (?, ?, CAST(? AS run_status))
                 """;
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(con -> {
             PreparedStatement ps = con.prepareStatement(sql, new String[]{"id"});
             ps.setObject(1, comparedToRunId);
             ps.setDate(2, java.sql.Date.valueOf(snapshotDate));
+            ps.setString(3, "RUNNING");
             return ps;
         }, keyHolder);
         return keyHolder.getKeyAs(Long.class);
     }
 
     public void updateStatus(Long runId, String status) {
-        String sql = "UPDATE kkd_run SET status = ? WHERE id = ?";
+        String sql = "UPDATE kkd_run SET status = CAST(? AS run_status) WHERE id = ?";
         jdbcTemplate.update(sql, status, runId);
     }
 
