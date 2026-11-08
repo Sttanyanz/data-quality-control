@@ -12,7 +12,20 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    volumes: [ pgdata:/var/lib/postgresql/data ]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  app:
+    build: .
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${DB_NAME:-kkd}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME:-kkd}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD:-kkd}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   pgdata:
