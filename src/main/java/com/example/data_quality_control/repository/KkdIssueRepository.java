@@ -1,11 +1,15 @@
 package com.example.data_quality_control.repository;
 
+import com.example.data_quality_control.domain.KkdIssue;
 import com.example.data_quality_control.domain.KkdIssueDto;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -14,9 +18,11 @@ import java.util.List;
 public class KkdIssueRepository {
 
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
 
-    public KkdIssueRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate) {
+    public KkdIssueRepository(NamedParameterJdbcTemplate namedParameterJdbcTemplate, JdbcTemplate jdbcTemplate) {
         this.namedParameterJdbcTemplate = namedParameterJdbcTemplate;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     private final RowMapper<KkdIssueDto> kkdIssueDtoRowMapper = (rs, rowNum) -> {
@@ -80,5 +86,29 @@ public class KkdIssueRepository {
             .addValue("severity", severity);
 
         return namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
+    }
+
+    public void saveAll(Long runId, List<KkdIssue> issues) {
+        String sql = """
+                INSERT INTO kkd_issue (run_id, rule_id, goal_id, key_result_id, severity, message)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """;
+        jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
+                KkdIssue issue = issues.get(i);
+                ps.setLong(1, runId);
+                ps.setLong(2, issue.ruleId());
+                ps.setObject(3, issue.goalId());
+                ps.setObject(4, issue.keyResultId());
+                ps.setString(5, issue.severity());
+                ps.setString(6, issue.message());
+            }
+
+            @Override
+            public int getBatchSize() {
+                return issues.size();
+            }
+        });
     }
 }
