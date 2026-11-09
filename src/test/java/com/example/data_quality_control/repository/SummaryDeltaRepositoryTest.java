@@ -82,10 +82,10 @@ class SummaryDeltaRepositoryTest {
         // Первый прогон (previousRunId = null)
         List<SeverityDto> stats = deltaRepository.getSeverityStats(1L, null, scope);
 
-        // Все previous должны быть 0, а delta равна current
+        // previous и delta должны быть null, а не 0
         SeverityDto critical = stats.stream().filter(s -> s.code().equals("critical")).findFirst().orElseThrow();
         assertThat(critical.current()).isEqualTo(4);
-        assertThat(critical.previous()).isEqualTo(0);
-        assertThat(critical.delta()).isEqualTo(4);
+        assertThat(critical.previous()).isNull();
+        assertThat(critical.delta()).isNull();
     }
 }

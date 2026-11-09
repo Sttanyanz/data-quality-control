@@ -76,38 +76,44 @@ public class SummaryDeltaRepository {
         Long effectivePreviousRunId = previousRunId != null ? previousRunId : -1L;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
-            .addValue("currentRunId", currentRunId)
-            .addValue("previousRunId", effectivePreviousRunId)
-            .addValue("goalIds", goalIds);
+                .addValue("currentRunId", currentRunId)
+                .addValue("previousRunId", effectivePreviousRunId)
+                .addValue("goalIds", goalIds);
 
         String sql = """
-            SELECT
-                severity::text AS code,
-                COUNT(*) FILTER (WHERE run_id = :currentRunId) AS current_count,
-                COUNT(*) FILTER (WHERE run_id = :previousRunId) AS previous_count
-            FROM kkd_issue
-            WHERE run_id IN (:currentRunId, :previousRunId)
-              AND COALESCE(goal_id, (SELECT goal_id FROM key_result WHERE id = key_result_id)) IN (:goalIds)
-            GROUP BY severity::text
-            """;
+                SELECT
+                    i.severity::text AS code,
+                    COUNT(*) FILTER (WHERE i.run_id = :currentRunId) AS current_count,
+                    COUNT(*) FILTER (WHERE i.run_id = :previousRunId) AS previous_count
+                FROM kkd_issue i
+                LEFT JOIN key_result kr ON i.key_result_id = kr.id
+                WHERE i.run_id IN (:currentRunId, :previousRunId)
+                  AND COALESCE(i.goal_id, kr.goal_id) IN (:goalIds)
+                GROUP BY i.severity::text
+                """;
 
         Map<String, SeverityDto> severityMap = new HashMap<>();
-        severityMap.put("critical", new SeverityDto("critical", 0, 0, 0));
-        severityMap.put("major", new SeverityDto("major", 0, 0, 0));
-        severityMap.put("minor", new SeverityDto("minor", 0, 0, 0));
+        for (String code : List.of("critical", "major", "minor")) {
+            severityMap.put(code, previousRunId == null
+                    ? new SeverityDto(code, 0, null, null)
+                    : new SeverityDto(code, 0, 0, 0));
+        }
 
         namedParameterJdbcTemplate.query(sql, params, (rs) -> {
             String code = rs.getString("code");
             Integer current = rs.getInt("current_count");
-            Integer previous = rs.getInt("previous_count");
-            int delta = current - previous;
-            severityMap.put(code, new SeverityDto(code, current, previous, delta));
+            if (previousRunId == null) {
+                severityMap.put(code, new SeverityDto(code, current, null, null));
+            } else {
+                Integer previous = rs.getInt("previous_count");
+                severityMap.put(code, new SeverityDto(code, current, previous, current - previous));
+            }
         });
 
         return List.of(
-            severityMap.get("critical"),
-            severityMap.get("major"),
-            severityMap.get("minor")
+                severityMap.get("critical"),
+                severityMap.get("major"),
+                severityMap.get("minor")
         );
     }
 }
