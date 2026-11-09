@@ -1,15 +1,17 @@
 package com.example.data_quality_control.service;
 
+import com.example.data_quality_control.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-class ScopeServiceTest {
+@Transactional
+class ScopeServiceTest extends AbstractIntegrationTest {
 
     @Autowired
     private ScopeService scopeService;

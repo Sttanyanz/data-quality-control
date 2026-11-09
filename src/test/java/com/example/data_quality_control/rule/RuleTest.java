@@ -37,6 +37,21 @@ class RuleTest {
     }
 
     @Test
+    void goalNoOwnerRule_emptyGoals_shouldReturnEmptyList() {
+        // Arrange
+        List<GoalForRule> goals = List.of();
+        Map<Long, List<KeyResultForRule>> krsByGoal = Map.of();
+
+        GoalNoOwnerRule rule = new GoalNoOwnerRule();
+
+        // Act
+        List<IssueProposal> issues = rule.evaluate(goals, krsByGoal);
+
+        // Assert
+        assertThat(issues).isEmpty();
+    }
+
+    @Test
     void krWeightsSumRule_validWeights_shouldReturnNoIssues() {
         // Arrange
         GoalForRule goal = new GoalForRule(1L, 10L, "active");
@@ -74,6 +89,22 @@ class RuleTest {
         assertThat(issues).hasSize(1);
         assertThat(issues.getFirst().goalId()).isEqualTo(1L);
         assertThat(issues.getFirst().message()).contains("Сумма весов ключевых результатов не равна 100%");
+    }
+
+    @Test
+    void krWeightsSumRule_emptyKrs_shouldReturnEmptyList() {
+        // Arrange
+        GoalForRule goal = new GoalForRule(1L, 10L, "active");
+        List<GoalForRule> goals = List.of(goal);
+        Map<Long, List<KeyResultForRule>> krsByGoal = Map.of(1L, List.of());
+
+        KrWeightsSumRule rule = new KrWeightsSumRule();
+
+        // Act
+        List<IssueProposal> issues = rule.evaluate(goals, krsByGoal);
+
+        // Assert
+        assertThat(issues).isEmpty();
     }
 
     @Test

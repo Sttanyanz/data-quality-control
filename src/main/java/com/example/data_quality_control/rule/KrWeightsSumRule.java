@@ -27,6 +27,9 @@ public class KrWeightsSumRule implements KkdRule {
                 .filter(goal -> krsByGoal.containsKey(goal.id()))
                 .filter(goal -> {
                     List<KeyResultForRule> krs = krsByGoal.get(goal.id());
+                    if (krs.isEmpty()) {
+                        return false;
+                    }
                     BigDecimal sum = krs.stream()
                             .map(KeyResultForRule::weight)
                             .filter(Objects::nonNull)

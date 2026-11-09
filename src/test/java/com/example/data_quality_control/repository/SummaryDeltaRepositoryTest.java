@@ -1,19 +1,21 @@
 package com.example.data_quality_control.repository;
 
+import com.example.data_quality_control.AbstractIntegrationTest;
 import com.example.data_quality_control.domain.summary.DeltaDto;
 import com.example.data_quality_control.domain.summary.SeverityDto;
 import com.example.data_quality_control.service.ScopeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-class SummaryDeltaRepositoryTest {
+@Transactional
+class SummaryDeltaRepositoryTest extends AbstractIntegrationTest {
 
     @Autowired
     private SummaryDeltaRepository deltaRepository;
