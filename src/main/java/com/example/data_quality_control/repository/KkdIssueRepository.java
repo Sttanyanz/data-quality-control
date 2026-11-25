@@ -2,6 +2,7 @@ package com.example.data_quality_control.repository;
 
 import com.example.data_quality_control.domain.KkdIssue;
 import com.example.data_quality_control.domain.KkdIssueDto;
+import org.jspecify.annotations.NonNull;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -36,7 +37,7 @@ public class KkdIssueRepository {
     };
 
     public List<KkdIssueDto> findIssues(Long runId, Set<Long> goalIds, String ruleCode, String severity, int limit, int offset) {
-        String sql = """
+        StringBuilder sql = new StringBuilder("""
                 SELECT i.id, r.code AS rule_code, i.severity,
                        CASE WHEN i.goal_id IS NOT NULL THEN 'GOAL' ELSE 'KR' END AS target_type,
                        COALESCE(i.goal_id, i.key_result_id) AS target_id,
@@ -45,43 +46,57 @@ public class KkdIssueRepository {
                 JOIN kkd_rule r ON i.rule_id = r.id
                 LEFT JOIN key_result kr ON i.key_result_id = kr.id
                 WHERE i.run_id = :runId
-                  AND (:goalIds IS NULL OR COALESCE(i.goal_id, kr.goal_id) IN (:goalIds))
-                  AND (:ruleCode IS NULL OR r.code::text = :ruleCode)
-                  AND (:severity IS NULL OR i.severity::text = :severity)
-                ORDER BY i.id
-                LIMIT :limit OFFSET :offset
-                """;
+                """);
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("runId", runId)
-                .addValue("goalIds", goalIds)
-                .addValue("ruleCode", ruleCode)
-                .addValue("severity", severity)
                 .addValue("limit", limit)
                 .addValue("offset", offset);
 
-        return namedParameterJdbcTemplate.query(sql, params, kkdIssueDtoRowMapper);
+        if (goalIds != null && !goalIds.isEmpty()) {
+            sql.append(" AND COALESCE(i.goal_id, kr.goal_id) IN (:goalIds)");
+            params.addValue("goalIds", goalIds);
+        }
+        if (ruleCode != null && !ruleCode.isBlank()) {
+            sql.append(" AND r.code::text = :ruleCode");
+            params.addValue("ruleCode", ruleCode);
+        }
+        if (severity != null && !severity.isBlank()) {
+            sql.append(" AND i.severity::text = :severity");
+            params.addValue("severity", severity);
+        }
+
+        sql.append(" ORDER BY i.id LIMIT :limit OFFSET :offset");
+
+        return namedParameterJdbcTemplate.query(sql.toString(), params, kkdIssueDtoRowMapper);
     }
 
     public long countIssues(Long runId, Set<Long> goalIds, String ruleCode, String severity) {
-        String sql = """
+        StringBuilder sql = new StringBuilder("""
                 SELECT COUNT(*)
                 FROM kkd_issue i
                 JOIN kkd_rule r ON i.rule_id = r.id
                 LEFT JOIN key_result kr ON i.key_result_id = kr.id
                 WHERE i.run_id = :runId
-                  AND (:goalIds IS NULL OR COALESCE(i.goal_id, kr.goal_id) IN (:goalIds))
-                  AND (:ruleCode IS NULL OR r.code::text = :ruleCode)
-                  AND (:severity IS NULL OR i.severity::text = :severity)
-                """;
+                """);
 
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("runId", runId)
-                .addValue("goalIds", goalIds)
-                .addValue("ruleCode", ruleCode)
-                .addValue("severity", severity);
+                .addValue("runId", runId);
 
-        Long count = namedParameterJdbcTemplate.queryForObject(sql, params, Long.class);
+        if (goalIds != null && !goalIds.isEmpty()) {
+            sql.append(" AND COALESCE(i.goal_id, kr.goal_id) IN (:goalIds)");
+            params.addValue("goalIds", goalIds);
+        }
+        if (ruleCode != null && !ruleCode.isBlank()) {
+            sql.append(" AND r.code::text = :ruleCode");
+            params.addValue("ruleCode", ruleCode);
+        }
+        if (severity != null && !severity.isBlank()) {
+            sql.append(" AND i.severity::text = :severity");
+            params.addValue("severity", severity);
+        }
+
+        Long count = namedParameterJdbcTemplate.queryForObject(sql.toString(), params, Long.class);
         return count != null ? count : 0L;
     }
 
@@ -92,7 +107,7 @@ public class KkdIssueRepository {
                 """;
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
             @Override
-            public void setValues(PreparedStatement ps, int i) throws SQLException {
+            public void setValues(@NonNull PreparedStatement ps, int i) throws SQLException {
                 KkdIssue issue = issues.get(i);
                 ps.setLong(1, runId);
                 ps.setLong(2, issue.ruleId());
