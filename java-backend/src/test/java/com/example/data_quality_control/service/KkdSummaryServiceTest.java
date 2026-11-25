@@ -4,7 +4,6 @@ import com.example.data_quality_control.domain.KkdRun;
 import com.example.data_quality_control.domain.summary.DeltaDto;
 import com.example.data_quality_control.domain.summary.MetricCountsDto;
 import com.example.data_quality_control.domain.summary.MetricDto;
-import com.example.data_quality_control.domain.summary.SeverityDto;
 import com.example.data_quality_control.domain.summary.SummaryResponse;
 import com.example.data_quality_control.repository.KkdRunRepository;
 import com.example.data_quality_control.repository.MetricsRepository;
@@ -24,8 +23,6 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -79,7 +76,7 @@ class KkdSummaryServiceTest {
 
         assertThat(response.metrics()).hasSize(3);
 
-        MetricDto cleanKrShare = response.metrics().get(0);
+        MetricDto cleanKrShare = response.metrics().getFirst();
         assertThat(cleanKrShare.key()).isEqualTo("clean_kr_share");
         assertThat(cleanKrShare.value()).isEqualTo(75.0);
         assertThat(cleanKrShare.previous()).isEqualTo(60.0);

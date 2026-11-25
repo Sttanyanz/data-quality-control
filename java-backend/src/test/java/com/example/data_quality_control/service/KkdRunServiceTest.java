@@ -101,12 +101,12 @@ class KkdRunServiceTest {
         verify(kkdIssueRepository).saveAll(eq(newRunId), issuesCaptor.capture());
         List<KkdIssue> savedIssues = issuesCaptor.getValue();
         assertThat(savedIssues).hasSize(2);
-        assertThat(savedIssues.get(0).runId()).isEqualTo(newRunId);
-        assertThat(savedIssues.get(0).ruleId()).isEqualTo(1L);
-        assertThat(savedIssues.get(0).goalId()).isEqualTo(1L);
-        assertThat(savedIssues.get(0).keyResultId()).isEqualTo(1L);
-        assertThat(savedIssues.get(0).severity()).isEqualTo("HIGH");
-        assertThat(savedIssues.get(0).message()).isEqualTo("Issue message 1");
+        assertThat(savedIssues.getFirst().runId()).isEqualTo(newRunId);
+        assertThat(savedIssues.getFirst().ruleId()).isEqualTo(1L);
+        assertThat(savedIssues.getFirst().goalId()).isEqualTo(1L);
+        assertThat(savedIssues.getFirst().keyResultId()).isEqualTo(1L);
+        assertThat(savedIssues.getFirst().severity()).isEqualTo("HIGH");
+        assertThat(savedIssues.getFirst().message()).isEqualTo("Issue message 1");
 
         verify(runRepository).updateStatus(newRunId, "COMPLETED");
     }

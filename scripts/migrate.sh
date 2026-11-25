@@ -18,7 +18,7 @@ JDBC_URL="jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}"
 echo "Запуск миграции Flyway для ${JDBC_URL}..."
 
 # Передаем собранный URL и креды напрямую в Maven
-./mvnw flyway:migrate \
+./java-backend/mvnw flyway:migrate \
   -Dflyway.url="${JDBC_URL}" \
   -Dflyway.user="${DB_USERNAME:-kkd}" \
   -Dflyway.password="${DB_PASSWORD:-kkd}" \
